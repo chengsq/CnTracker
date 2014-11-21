@@ -7,6 +7,7 @@
 
 #ifndef COLOR_ATTRIBUTES_TRACKER_H_
 #define COLOR_ATTRIBUTES_TRACKER_H_
+using namespace std;
 
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
