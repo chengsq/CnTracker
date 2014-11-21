@@ -66,7 +66,7 @@ int main()
     im_mat = imread(image_name, CV_LOAD_IMAGE_COLOR);
     if(i == 0)
     {
-      cn_tracker = new ColorAttributesTracker(im_mat,init__center_pos.y,init__center_pos.y,target_sz.width,target_sz.height,0);
+      cn_tracker = new ColorAttributesTracker(im_mat,init__center_pos.x,init__center_pos.y,target_sz.width,target_sz.height,0);
     }
     else{
       cn_tracker->Update(im_mat);

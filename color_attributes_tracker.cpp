@@ -27,9 +27,9 @@ ColorAttributesTracker::ColorAttributesTracker(Mat& rgb_mat, int x, int y,int wi
   lambda = 0.01;
   learning_rate = 0.075;
   compression_learning_rate = 0.15;
-  non_compressed_features = (Mat_<int>(1, 1) << gray);
+  non_compressed_features = gray;
   //compressed_features = Mat();
-  compressed_features = (Mat_<int>(1, 1) << cn);
+  compressed_features = cn;
   num_compressed_dim = 2;
   init_pos_.x = x;
   init_pos_.y = y;
@@ -44,18 +44,20 @@ ColorAttributesTracker::ColorAttributesTracker(Mat& rgb_mat, int x, int y,int wi
   output_sigma = sqrt(prod) * output_sigma_factor;
 
   Mat hann;
-  createHanningWindow(hann, sz, CV_32F);  // TO-DO
+  createHanningWindow(hann, sz, CV_64F);  // TO-DO
   multiply(hann, hann, cos_window);
-  Mat my = Mat(sz.height, sz.width, CV_32F);
+  Mat my = Mat(sz.height, sz.width, CV_64F);
   for (int j = 0; j < sz.height; ++j)
     for (int i = 0; i < sz.width; ++i) {
-      int ai = i - sz.width / 2;
-      int aj = j - sz.height / 2;
+      int ai = i+1 - sz.width / 2;
+      int aj = j+1 - sz.height / 2;
       float sqrt = ai * ai + aj * aj;
-      my.at<float>(j, i) = exp(-0.5 * sqrt / output_sigma);
+      my.at<double>(j, i) = exp(-0.5 * sqrt / (output_sigma * output_sigma));
+      if(i == 0 && j == 0)
+        printf("%f %f", sqrt,my.at<double>(j, i));
     }
 
-  dft(my, yf, DFT_REAL_OUTPUT);
+  dft(my, yf, DFT_COMPLEX_OUTPUT);
   dr_flag = true;
   w2c = LoadW2C("w2c.txt");
   TrackerInit(rgb_mat);
@@ -205,7 +207,7 @@ Mat ColorAttributesTracker::DenseGaussKernel(const double sigma, const Mat x,
 //% Computes the kernel output for multi-dimensional feature maps x and y
 //% using a Gaussian kernel with standard deviation sigma.
 
-  Mat xf = Mat::zeros(x.size(), CV_32FC1);
+  Mat xf = Mat::zeros(x.size(), CV_64FC1);
   vector<Mat> x_v, xf_v;
   split(x, x_v);
 
@@ -232,7 +234,7 @@ Mat ColorAttributesTracker::DenseGaussKernel(const double sigma, const Mat x,
 
   //%cross-correlation term in Fourier domain
   vector<Mat> planes;
-  Mat zero_mat = Mat::zeros(yf.size(), CV_32F);
+  Mat zero_mat = Mat::zeros(yf.size(), CV_64F);
   split(yf, planes);
   Mat conj_yf;
   planes[1] = zero_mat - planes[1];
@@ -243,8 +245,8 @@ Mat ColorAttributesTracker::DenseGaussKernel(const double sigma, const Mat x,
 //  printf("%d %d %d\n",conj_yf.rows,conj_yf.cols,conj_yf.channels());
   multiply(xf, conj_yf, xyf);
 
-  Mat split_planes[] = { Mat::zeros(xyf.size(), CV_32F), Mat::zeros(xyf.size(),
-  CV_32F), Mat::zeros(xyf.size(), CV_32F) };
+  Mat split_planes[] = { Mat::zeros(xyf.size(), CV_64F), Mat::zeros(xyf.size(),
+  CV_64F), Mat::zeros(xyf.size(), CV_64F) };
 
   split_planes[0] += planes[0] + planes[2];
   Mat xy;
@@ -256,17 +258,17 @@ Mat ColorAttributesTracker::DenseGaussKernel(const double sigma, const Mat x,
   int num = x.dims;
   for (int i = 0; i < xy.rows; ++i)
     for (int j = 0; j < xy.cols; ++j) {
-      float t = std::max(0.0, (xx + yy - 2 * xy.at<float>(i, j)));
+      double t = std::max(0.0, (xx + yy - 2 * xy.at<double>(i, j)));
       t = -1.0 * t / num;
-      xy.at<float>(i, j) += exp(t);
+      xy.at<double>(i, j) += exp(t);
     }
 
   return xy;
 }
 
 void ColorAttributesTracker::GetSubwindow(const Mat im, Point pos, Size sz,
-                                          const Mat non_pca_features,
-                                          const Mat pca_features, const Mat w2c,
+                                          const FEATURES non_pca_features,
+                                          const FEATURES pca_features, const Mat w2c,
                                           Mat* out_npca, Mat* out_pca) {
 //  % [out_npca, out_pca] = get_subwindow(im, pos, sz, non_pca_features, pca_features, w2c)
 //  %
@@ -286,26 +288,41 @@ void ColorAttributesTracker::GetSubwindow(const Mat im, Point pos, Size sz,
 
   //  %check for out-of-bounds coordinates, and set them to the values at
   //  %the borders
-  if (roi_rect.x < 0)
+  int top = 0, bottom = 0, left = 0, right = 0;
+  roi_rect.width = sz.width;
+  roi_rect.height = sz.height;
+
+  if (roi_rect.x < 0){
+    left = - roi_rect.x;
     roi_rect.x = 0;
+    roi_rect.width -= left;
+   }
 
-  if (roi_rect.y < 0)
+  if (roi_rect.y < 0){
+    top = -roi_rect.y;
     roi_rect.y = 0;
+    roi_rect.height -= top;
+  }
 
-  if (roi_rect.x + sz.width > width)
-    roi_rect.width = width - roi_rect.x;
-  else
-    roi_rect.width = sz.width;
 
-  if (roi_rect.y + sz.height > height)
-    roi_rect.height = height - roi_rect.y;
-  else
-    roi_rect.height = sz.height;
+  if (roi_rect.x + sz.width > width){
+    right = roi_rect.x + sz.width - width;
+    roi_rect.width -= right;
+  }
 
-  Mat im_patch = im(roi_rect);
+  if (roi_rect.y + sz.height > height){
+    bottom = roi_rect.y + sz.height - height;
+    roi_rect.height -= bottom;
+  }
+
+  Mat im_patch = Mat(sz,CV_8UC3);
+  Mat im_roi = im(roi_rect);
+
+  copyMakeBorder(im_roi, im_patch, top, bottom, left, right, BORDER_REPLICATE);
+
   vector<Mat> feature_map;
   //% compute non-pca feature map
-  if (non_pca_features.empty()) {
+  if (non_pca_features == none) {
     out_npca = NULL;
   }
   else {
@@ -313,7 +330,7 @@ void ColorAttributesTracker::GetSubwindow(const Mat im, Point pos, Size sz,
     merge(feature_map, (*out_npca));
   }
 //  % compute pca feature map
-  if (pca_features.empty()) {
+  if (pca_features == none) {
     out_pca = NULL;
   } else {
     feature_map = GetFeatureMap(im_patch, cn, w2c);
@@ -339,11 +356,11 @@ vector<Mat> ColorAttributesTracker::GetFeatureMap(Mat im_patch,
 //	int num_feature_levels = feature_levels[(int)features];
   Mat out;
   if (im_patch.channels() == 1) {
-    out = Mat_<float>::zeros(im_patch.rows, im_patch.cols);
+    out = Mat_<double>::zeros(im_patch.rows, im_patch.cols);
     out = im_gray_patch / 255 - 0.5;
     outs.push_back(out);
   } else {
-    out = Mat_<float>::zeros(im_patch.rows, im_patch.cols);
+    out = Mat_<double>::zeros(im_patch.rows, im_patch.cols);
     out = im_gray_patch / 255 - 0.5;
     outs.push_back(out);
     IM2C(outs, im_patch, w2c, -2);
@@ -374,11 +391,11 @@ void ColorAttributesTracker::IM2C(vector<Mat>&outs, Mat im_patch, Mat w2c,
   }
 
   for (int k = 0; k < 10; ++k) {
-    Mat out = Mat_<float>::zeros(im_patch.rows, im_patch.cols);
+    Mat out = Mat_<double>::zeros(im_patch.rows, im_patch.cols);
     int index = 0;
     for (int i = 0; i < im_patch.cols; ++i) {
       for (int j = 0; j < im_patch.rows; ++j) {
-        out.at<float>(j, i) = w2c.at<float>(index_im[index++], k);
+        out.at<double>(j, i) = w2c.at<double>(index_im[index++], k);
       }
     }
     outs.push_back(out);
@@ -392,7 +409,7 @@ Mat ColorAttributesTracker::LoadW2C(char* file_name) {
     printf("Cannot find w2c.txt!\n");
     exit(-1);
   }
-  Mat w2c = Mat_<float>::zeros(32768, 10);
+  Mat w2c = Mat_<double>::zeros(32768, 10);
   for (int i = 0; i < 32768; ++i) {
     for (int j = 0; j < 10; ++j) {
       float value;
@@ -401,7 +418,7 @@ Mat ColorAttributesTracker::LoadW2C(char* file_name) {
         printf("Wrong File!\n");
         exit(-1);
       }
-      w2c.at<float>(i, j) = value;
+      w2c.at<double>(i, j) = value;
     }
   }
   fclose(fp);

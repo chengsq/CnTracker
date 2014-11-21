@@ -10,8 +10,8 @@
 
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-enum FEATURES {
-	gray, cn
+enum FEATURES{
+	gray, cn,none
 };
 using namespace cv;
 
@@ -31,7 +31,7 @@ public:
 private:
 	vector<Mat> GetFeatureMap(Mat im_patch, FEATURES features, Mat w2c);
 	void IM2C(vector<Mat>&outs, Mat im_patch, Mat w2c, int color);
-	void GetSubwindow(const Mat im, Point pos, Size sz, const Mat non_pca_features, const Mat pca_features, const Mat w2c, Mat* out_npca, Mat* out_pca);
+	void GetSubwindow(const Mat im, Point pos, Size sz, const FEATURES non_pca_features, const FEATURES pca_features, const Mat w2c, Mat* out_npca, Mat* out_pca);
 	void FeatureProjection(const Mat x_npca, const Mat x_pca, const Mat projection_matrix, const Mat cos_window, Mat& z);
 	Mat DenseGaussKernel(const double sigma, const Mat x, const Mat y);
 	void TrackerInit(Mat img);
@@ -47,8 +47,8 @@ private:
 	float lambda;
 	float learning_rate;
 	float compression_learning_rate;
-	Mat non_compressed_features;
-	Mat compressed_features;
+	FEATURES non_compressed_features;
+	FEATURES compressed_features;
 	float output_sigma;
 	int num_compressed_dim;
 	Point init_pos_;
