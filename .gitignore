@@ -1,12 +1,9 @@
-Debug
-Release
 Build
 debug
 release
 build
 LibraRelease
 docs/html
-.settings/
 install.sh
 *.mat
 *.[od]

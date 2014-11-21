@@ -43,8 +43,9 @@ ColorAttributesTracker::ColorAttributesTracker(Mat& rgb_mat, int x, int y,int wi
   float prod = target_sz_.height * target_sz_.width;
   output_sigma = sqrt(prod) * output_sigma_factor;
 
-  createHanningWindow(cos_window, sz, CV_32F);  // TO-DO
-
+  Mat hann;
+  createHanningWindow(hann, sz, CV_32F);  // TO-DO
+  multiply(hann, hann, cos_window);
   Mat my = Mat(sz.height, sz.width, CV_32F);
   for (int j = 0; j < sz.height; ++j)
     for (int i = 0; i < sz.width; ++i) {
