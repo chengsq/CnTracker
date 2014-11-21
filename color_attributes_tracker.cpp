@@ -21,7 +21,6 @@ void printfMat(char* matName,Mat mat,int flag = 0)
 	{
 		cout<<mat<<"\n";
 	}
-	//fclose()
 }
 
 #define DEBUG_PRINT()  printf("%s %s %d \n",__FILE__,__FUNCTION__,__LINE__)
@@ -92,6 +91,8 @@ void ColorAttributesTracker::TrackerInit(Mat img) {
   num_compressed_dim = min(num_compressed_dim, xo_pca.cols);
 
   //  % project the features of the new appearance example using the new projection matrix
+
+  //printfMat("z_pca",z_pca);
 
   if (dr_flag == true)
     DimensionReductionInit();
@@ -369,17 +370,13 @@ vector<Mat> ColorAttributesTracker::GetFeatureMap(Mat im_patch,
   used_features[0] = 0;
   used_features[1] = 0;
 
-
-
   if(features == gray)
 	  used_features[0] = 1;
 
   if(features == cn)
   	  used_features[1] = 1;
 
-
   Mat out;
-  printf("%d %d %d\n",im_patch.rows,im_patch.cols,im_patch.channels());
 	out = Mat_<double>::zeros(im_patch.rows, im_patch.cols);
 	if (im_patch.channels() == 1) {
 		out = Mat_<double>::zeros(im_patch.rows, im_patch.cols);
@@ -416,20 +413,23 @@ void ColorAttributesTracker::IM2C(vector<Mat>&outs, Mat im_patch, Mat w2c,
   GG = channels.at(1);
   RR = channels.at(2);
   Mat index_im = Mat::zeros(BB.rows*BB.cols,1,CV_32FC1);
-  //vector<int> index_im;
   int count = 0;
   for (int i = 0; i < im_patch.cols; ++i) {
 		for (int j = 0; j < im_patch.rows; ++j) {
 		    unsigned char *Mi;
 		    Mi = im_patch.ptr<unsigned char>(j);
-			double R = Mi[i+2];
-			double G = Mi[i+1];
-			double B = Mi[i+0];
+
+			double R = Mi[3*i+2];
+			double G = Mi[3*i+1];
+			double B = Mi[3*i+0];
 			int index = 0+floor(R / 8) + 32 * floor(G / 8) + 32 * 32 * floor(B / 8);
 			index_im.at<float>(count,0) = index;
 			count++;
 		}
 	}
+
+  //printfMat("index_im",index_im,1);
+
   for (int k = 0; k < 10; ++k) {
     Mat out = Mat_<double>::zeros(im_patch.rows, im_patch.cols);
     int index = 0;
@@ -509,12 +509,11 @@ void ColorAttributesTracker::DimensionReduction() {
 
 void ColorAttributesTracker::DimensionReductionInit() {
 	Mat data_mean = Mat(z_pca.cols,1,CV_64F);
-	cout<<z_pca<<endl;
 	for (int i = 0; i < z_pca.cols; ++i) {
 		double sum = .0f;
 		for (int j = 0; j < z_pca.rows; ++j)
 			sum += z_pca.at<double>(j, i);
-		//cout<<"Sum:"<<sum<<endl;
+		cout<<"Sum:"<<sum<<endl;
 		data_mean.at<double>(i,0) = (sum / z_pca.rows);
 		for (int j = 0; j < z_pca.rows; ++j)
 			z_pca.at<double>(j, i) -= data_mean.at<double>(i,0);

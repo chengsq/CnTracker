@@ -39,7 +39,7 @@ Rect target_rect;
 ColorAttributesTracker* cn_tracker;
 int main()
 {
-	freopen("name.txt","w",stdout);
+  freopen("name.txt","w",stdout);
   Mat im_mat;
   namedWindow(window_name, 1);
   sprintf(gt_file_name,"%s/%s/%s",suqences_dir,video_dir,gt_name);
