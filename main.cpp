@@ -57,14 +57,13 @@ void test()
 }
 int main()
 {
-  freopen("name.txt","w",stdout);
+//  freopen("name.txt","w",stdout);
 //  test();
 //  return 0;
 
   Mat im_mat;
   namedWindow(window_name, 1);
   sprintf(gt_file_name,"%s/%s/%s",suqences_dir,video_dir,gt_name);
-  //printf("%s\n",gt_file_name);
 
   FILE* fp = fopen(gt_file_name,"r");
 
@@ -100,10 +99,7 @@ int main()
     circle(im_mat,init__center_pos,3,Scalar(0,255,0));
     rectangle(im_mat, target_rect, Scalar(0,255,255), 1);
     imshow(window_name,im_mat);
-    waitKey(0);
+    waitKey(1);
   }
   destroyWindow(window_name);
 }
-
-
-

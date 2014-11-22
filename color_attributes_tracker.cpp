@@ -11,29 +11,24 @@
 #include <stdio.h>
 #include <iomanip>
 void printfMat(char* matName, Mat mat, int flag = 0) {
-	//freopen("name.txt","w",stdout);
 	cout << matName << " rows:" << mat.rows << " cols:" << mat.cols << " channel:" << mat.channels() << " Type:" << mat.type() << "\n";
-	//cout <<setprecision(4) <<12.345678 <<endl;
 	if (flag == 0) {
 		cout << mat.row(0) << "\n";
 	} else {
 		cout << mat << "\n";
 	}
 }
-void printfMat_withPrec(char* matName, Mat mat) {
-	//freopen("name.txt","w",stdout);
-	//cout << matName << " rows:" << mat.rows << " cols:" << mat.cols << " channel:" << mat.channels() << " Type:" << mat.type() << "\n";
-	//cout <<setprecision(4) <<12.345678 <<endl;
-	for(int i = 0; i<mat.rows;++i)
-	{
-		for(int j = 0; j<mat.cols; ++j)
-			cout <<setprecision(10)<<mat.at<double>(i,j)<<" ";
-		cout<<endl;
-	}
 
+void printfMat_withPrec(char* matName, Mat mat) {
+	for (int i = 0; i < mat.rows; ++i) {
+		for (int j = 0; j < mat.cols; ++j)
+			cout << setprecision(10) << mat.at<double>(i, j) << " ";
+		cout << endl;
+	}
 }
 
 #define DEBUG_PRINT()  printf("%s %s %d \n",__FILE__,__FUNCTION__,__LINE__)
+
 ColorAttributesTracker::ColorAttributesTracker() {
 
 }
@@ -41,7 +36,6 @@ ColorAttributesTracker::~ColorAttributesTracker() {
 }
 
 ColorAttributesTracker::ColorAttributesTracker(Mat& rgb_mat, int x, int y, int width, int height, int id) {
-#if 1
 	id_ = id;
 	padding = 1;
 	output_sigma_factor = 0.0625;
@@ -50,7 +44,6 @@ ColorAttributesTracker::ColorAttributesTracker(Mat& rgb_mat, int x, int y, int w
 	learning_rate = 0.075;
 	compression_learning_rate = 0.15;
 	non_compressed_features = gray;
-	//compressed_features = Mat();
 	compressed_features = cn;
 	num_compressed_dim = 2;
 	init_pos_.x = x;
@@ -74,20 +67,17 @@ ColorAttributesTracker::ColorAttributesTracker(Mat& rgb_mat, int x, int y, int w
 			int ai = i + 1 - sz.width / 2;
 			int aj = j + 1 - sz.height / 2;
 			float sqrt = ai * ai + aj * aj;
-			my.at<double>(j, i) = exp(-0.5 * sqrt / (output_sigma * output_sigma));
+			my.at<double>(j, i) = exp(
+					-0.5 * sqrt / (output_sigma * output_sigma));
 		}
 
 	dft(my, yf, DFT_COMPLEX_OUTPUT);
 	dr_flag = true;
 	w2c = LoadW2C("w2c.txt");
 	TrackerInit(rgb_mat);
-
-#endif
-
 }
 
 void ColorAttributesTracker::TrackerInit(Mat img) {
-
 	xo_npca = Mat();
 	xo_pca = Mat();
 
@@ -95,32 +85,25 @@ void ColorAttributesTracker::TrackerInit(Mat img) {
 	z_npca = xo_npca;
 	z_pca = xo_pca;
 	num_compressed_dim = min(num_compressed_dim, xo_pca.cols);
+
 	if (dr_flag == true)
 		DimensionReductionInit();
+
 	Mat x;
 	FeatureProjection(xo_npca, xo_pca, projection_matrix, cos_window, x);
-//	vector<Mat> x_v;
-//	split(x,x_v);
-//	printfMat_withPrec("x",x_v[2]);
+
 	Mat kernel = DenseGaussKernel(sigma, x, x);
-	//printfMat_withPrec("kernel",kernel);
-//	printfMat("kernel",kernel,1);
 
 	Mat kf;
 	dft(kernel, kf, DFT_COMPLEX_OUTPUT);
-	//printfMat("kf",kf);
+
 	new_alphaf_num = ComplexMultiply(yf,kf);
-	vector<Mat> kf_v;
-	split(kf,kf_v);
-	kf_v[0] += lambda;
-	Mat kf_l;
-	merge(kf_v,kf_l);
+
+	Mat kf_l = kf + lambda;
 	new_alphaf_den = ComplexMultiply(kf,kf_l);
 
 	alphaf_num = new_alphaf_num;
 	alphaf_den = new_alphaf_den;
-	//exit(0);
-
 }
 
 void ColorAttributesTracker::Update(Mat img) {
@@ -129,15 +112,15 @@ void ColorAttributesTracker::Update(Mat img) {
 	GetSubwindow(img, pos, sz, non_compressed_features, compressed_features, w2c, &xo_npca, &xo_pca);
 	Mat x;
 	FeatureProjection(xo_npca, xo_pca, projection_matrix, cos_window, x);
-	cout<<sigma<<endl;
+
 	Mat kernel = DenseGaussKernel(sigma, x, zp);
 	Mat kf;
 	dft(kernel, kf, DFT_COMPLEX_OUTPUT);
 	Mat a, b, response;
+
 	a = ComplexMultiply(alphaf_num, kf);
 	b = ComplexDivide(a,alphaf_den);
 
-	//exit(0);
 
 	idft(b, response, DFT_REAL_OUTPUT);
 	Point maxLoc;
@@ -145,17 +128,20 @@ void ColorAttributesTracker::Update(Mat img) {
 	pos.x = pos.x - floor(sz.width / 2) + maxLoc.x;
 	pos.y = pos.y - floor(sz.height / 2) + maxLoc.y;
 	GetSubwindow(img, pos, sz, non_compressed_features, compressed_features, w2c, &xo_npca, &xo_pca);
+
 	//% update the appearance
 	z_npca = (1 - learning_rate) * z_npca + learning_rate * xo_npca;
 	z_pca = (1 - learning_rate) * z_pca + learning_rate * xo_pca;
 	if (dr_flag == true)
 		DimensionReduction();
+
 	FeatureProjection(xo_npca, xo_pca, projection_matrix, cos_window, x);
 	kernel = DenseGaussKernel(sigma, x, x);
 	dft(kernel, kf, DFT_COMPLEX_OUTPUT);
-	//new_alphaf_num = NonSymComplexMultiply(yf,kf);
-	multiply(yf, kf, new_alphaf_num);
+
+	multiply(yf, kf, new_alphaf_num);   // TO-DO
 	multiply(kf, (kf + lambda), new_alphaf_den);  //  new_alphaf_num = yf .* kf;  new_alphaf_den = kf .* (kf + lambda);
+
 	// % subsequent frames, update the model
 	alphaf_num = (1 - learning_rate) * alphaf_num + learning_rate * new_alphaf_num;
 	alphaf_den = (1 - learning_rate) * alphaf_den + learning_rate * new_alphaf_den;
@@ -166,20 +152,14 @@ void ColorAttributesTracker::FeatureProjection(const Mat x_npca, const Mat x_pca
 	vector<Mat> mat_vect;
 	if (x_pca.empty()) {
 		z = x_npca;
-		multiply(x_npca, cos_window, z);   //bug TO-DO
+		multiply(x_npca, cos_window, z);
 	} else {
 		int width = cos_window.cols;
-		int height = cos_window.rows;
 
-		//printf("FeatureProjection %d %d %d\n",x_pca.cols,x_pca.rows,x_pca.channels());
 		Mat tmp = x_pca * projection_matrix;
-		//Mat tmp_t = tmp.t();
-		//printfMat("projection_matrix",projection_matrix,1);
-		//printfMat("tmp_t",tmp_t,1);
-		Mat x_proj_pca = tmp.reshape(2, width);  //TO-DO
+		Mat x_proj_pca = tmp.reshape(2, width);
 		x_proj_pca = x_proj_pca.t();
 
-		//printfMat("x_proj_pca",x_proj_pca);
 		if (x_npca.empty()) {
 			z = x_proj_pca;
 		} else {
@@ -188,20 +168,12 @@ void ColorAttributesTracker::FeatureProjection(const Mat x_npca, const Mat x_pca
 			split(x_proj_pca, mat_vect);
 			mat_vect.insert(mat_vect.begin(), x_npca);
 			Mat tmp;
-//			merge(mat_vect,tmp);
-//			printfMat("tmp",tmp,1);
 			Mat t;
 
 			for (unsigned int i = 0; i < mat_vect.size(); ++i) {
-				//printf("FeatureProjection %d %d %d\n",mat_vect[i].cols,mat_vect[i].rows,mat_vect[i].channels());
-				//printf("FeatureProjection %d %d %d\n",cos_window.cols,cos_window.rows,cos_window.channels());
 				multiply(mat_vect[i], cos_window, mat_vect[i]);
-				//cout<<mat_vect[i].type()<<" "<<cos_window.type()<<endl;
-
 			}
 			merge(mat_vect, z);
-//			printfMat("cos_window",cos_window,1);
-			//printfMat("z",z,1);
 		}
 	}
 }
@@ -265,27 +237,20 @@ Mat ColorAttributesTracker::DenseGaussKernel(const double sigma, const Mat x, co
 	split(xy,xy_v);
 	xy = xy_v[0];
 
-
 	int num = x.channels() * x.cols * x.rows;
-	//printfMat_withPrec("comp",xy);
 	for (int i = 0; i < xy.rows; ++i) {
 		for (int j = 0; j < xy.cols; ++j) {
-			//cout<<xy.at<double>(i, j)<<" ";
 			double t = std::max(0.0, ((xx + yy - 2.0 * xy.at<double>(i, j))/num));
 			t = -1.0 / (sigma * sigma) * t;
 			xy.at<double>(i, j) = exp(t);
 		}
-		//cout<<endl;
 	}
-	//printfMat_withPrec("comp",xy);
-	//printfMat_withPrec("comp",xy);
 	return xy;
 }
 
 void ColorAttributesTracker::GetSubwindow(const Mat im, Point pos, Size sz, const FEATURES non_pca_features, const FEATURES pca_features, const Mat w2c,
 		Mat* out_npca, Mat* out_pca) {
 
-	//printf("%d %d\n",pos.x)
 	int width = im.cols;
 	int height = im.rows;
 
@@ -327,7 +292,6 @@ void ColorAttributesTracker::GetSubwindow(const Mat im, Point pos, Size sz, cons
 	copyMakeBorder(im_roi, im_patch, top, bottom, left, right, BORDER_REPLICATE);
 
 	vector<Mat> feature_map;
-	//% compute non-pca feature map
 	if (non_pca_features == none) {
 		out_npca = NULL;
 	} else {
@@ -439,6 +403,7 @@ void ColorAttributesTracker::IM2C(vector<Mat>&outs, Mat im_patch, Mat w2c, int c
 
 Mat ColorAttributesTracker::LoadW2C(char* file_name) {
 	FILE* fp;
+	printf("%s",file_name);
 	fp = fopen(file_name, "r");
 	if (fp == NULL) {
 		printf("Cannot find w2c.txt!\n");
@@ -575,4 +540,3 @@ Mat ColorAttributesTracker::NonSymComplexMultiply(Mat x, Mat y) {
 
 	return result;
 }
-
