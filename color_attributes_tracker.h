@@ -9,13 +9,14 @@
 #define COLOR_ATTRIBUTES_TRACKER_H_
 using namespace std;
 
+
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 enum FEATURES{
 	gray, cn,none
 };
 using namespace cv;
-
+void printfMat(char* matName,Mat mat,int flag);
 class ColorAttributesTracker {
 
 public:
@@ -40,6 +41,9 @@ private:
 	void Ndgrid(int x,int y,int size,Mat& out);
 	void DimensionReduction();
 	void DimensionReductionInit();
+	Mat CalCovMatrix(Mat z_pca,Mat* old_cov_matrix);
+	Mat ComplexMultiply(Mat a,Mat b);
+	Mat NonSymComplexMultiply(Mat x,Mat y);
 	bool dr_flag;
 
 	float padding;

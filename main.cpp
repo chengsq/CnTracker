@@ -23,7 +23,7 @@ char images_dir[100] =  "imgs";
 char gt_name[100] ="deer_gt.txt";
 char image_pre[100] ="img";
 
-int frame_cnt = 71;
+int frame_cnt = 70;
 
 using namespace cv;
 using namespace std;
@@ -37,9 +37,30 @@ Size  target_sz;
 Rect target_rect;
 
 ColorAttributesTracker* cn_tracker;
+void test()
+{
+	Mat a = Mat::zeros(130,190,CV_64F);
+	Mat af;
+	int num = 10000;
+	for(int i = 0; i<a.rows; ++i)
+		for(int j = 0;j<a.cols;++j)
+		{
+			a.at<double>(i,j) = num*2;
+			num++;
+		}
+	//cout<<a<<endl;
+	dft(a,af,DFT_COMPLEX_OUTPUT);
+	//cout<<af<<endl;
+	Mat aff;
+	dft(af,aff, cv::DFT_INVERSE|cv::DFT_REAL_OUTPUT);
+	cout<<aff/(130.*190.)<<endl;
+}
 int main()
 {
   freopen("name.txt","w",stdout);
+//  test();
+//  return 0;
+
   Mat im_mat;
   namedWindow(window_name, 1);
   sprintf(gt_file_name,"%s/%s/%s",suqences_dir,video_dir,gt_name);

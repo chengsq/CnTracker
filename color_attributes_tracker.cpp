@@ -9,17 +9,19 @@
 #include <algorithm>
 #include <iostream>
 #include <stdio.h>
+#include <iomanip>
 void printfMat(char* matName,Mat mat,int flag = 0)
 {
 	//freopen("name.txt","w",stdout);
 	cout<<matName<<" rows:"<<mat.rows<<" cols:"<<mat.cols<<" channel:"<<mat.channels()<<" Type:"<<mat.type()<<"\n";
+	//cout <<setprecision(4) <<12.345678 <<endl;
 	if(flag == 0)
 	{
-		cout<<mat.row(0)<<"\n";
+		cout<<setprecision(4)<<mat.row(0)<<"\n";
 	}
 	else
 	{
-		cout<<mat<<"\n";
+		cout<<setprecision(4)<<mat<<"\n";
 	}
 }
 
@@ -66,11 +68,9 @@ ColorAttributesTracker::ColorAttributesTracker(Mat& rgb_mat, int x, int y,int wi
       int aj = j+1 - sz.height / 2;
       float sqrt = ai * ai + aj * aj;
       my.at<double>(j, i) = exp(-0.5 * sqrt / (output_sigma * output_sigma));
-      if(i == 0 && j == 0)
-        printf("%f %f", sqrt,my.at<double>(j, i));
     }
 
-  dft(my, yf, DFT_COMPLEX_OUTPUT);
+  dft(my, yf, DFT_REAL_OUTPUT);
   dr_flag = true;
   w2c = LoadW2C("w2c.txt");
   TrackerInit(rgb_mat);
@@ -88,28 +88,35 @@ void ColorAttributesTracker::TrackerInit(Mat img) {
                w2c, &xo_npca, &xo_pca);
   z_npca = xo_npca;
   z_pca = xo_pca;
+  //printfMat("z_pca",z_pca,1);
   num_compressed_dim = min(num_compressed_dim, xo_pca.cols);
 
   //  % project the features of the new appearance example using the new projection matrix
 
-  //printfMat("z_pca",z_pca);
+//  printfMat("z_pca",z_pca,1);
 
   if (dr_flag == true)
     DimensionReductionInit();
   Mat x;
-  FeatureProjection(xo_npca, xo_pca, projection_matrix, cos_window, x);
+  //printfMat("z_pca",z_pca,1);
 
+  FeatureProjection(xo_npca, xo_pca, projection_matrix, cos_window, x);
 
   //% calculate the new classifier coefficients
   Mat kernel = DenseGaussKernel(sigma, x, x);
+  //printfMat("kernel",kernel);
 
   Mat kf;
-  idft(kernel, kf, DFT_COMPLEX_OUTPUT);
+  idft(kernel, kf, DFT_REAL_OUTPUT);
+  printfMat("kf",kf);
+  printfMat("yf",yf);
 
+//  multiply(kf, (kf + lambda), new_alphaf_den);  //  new_alphaf_num = yf .* kf;  new_alphaf_den = kf .* (kf + lambda);
 
-  multiply(yf, kf, new_alphaf_num);
+  	 //new_alphaf_num = NonSymComplexMultiply(yf,kf);
+   multiply(yf, kf, new_alphaf_num);
 
-  multiply(kf, (kf + lambda), new_alphaf_den);  //  new_alphaf_num = yf .* kf;  new_alphaf_den = kf .* (kf + lambda);
+   multiply(kf, (kf + lambda), new_alphaf_den);  //  new_alphaf_num = yf .* kf;  new_alphaf_den = kf .* (kf + lambda);
 
   //% first frame, train with a single image
   alphaf_num = new_alphaf_num;
@@ -165,7 +172,9 @@ void ColorAttributesTracker::Update(Mat img) {
   kernel = DenseGaussKernel(sigma, x, x);
 
   dft(kernel, kf, DFT_REAL_OUTPUT);
-  multiply(yf, kf, new_alphaf_num);
+
+  //new_alphaf_num = NonSymComplexMultiply(yf,kf);
+   multiply(yf, kf, new_alphaf_num);
 
   multiply(kf, (kf + lambda), new_alphaf_den);  //  new_alphaf_num = yf .* kf;  new_alphaf_den = kf .* (kf + lambda);
 
@@ -182,41 +191,47 @@ void ColorAttributesTracker::FeatureProjection(const Mat x_npca,
                                                const Mat x_pca,
                                                const Mat projection_matrix,
                                                const Mat cos_window, Mat& z) {
-  vector<Mat> mat_vect;
-  if (x_pca.empty()) {
-    z = x_npca;
-    multiply(x_npca, cos_window, z);   //bug TO-DO
-  } else {
-    int height = cos_window.rows;
-    int width = cos_window.cols;
+	vector<Mat> mat_vect;
+	if (x_pca.empty()) {
+		z = x_npca;
+		multiply(x_npca, cos_window, z);   //bug TO-DO
+	} else {
+		int width = cos_window.cols;
+		int height = cos_window.rows;
 
-    //printf("FeatureProjection %d %d %d\n",x_pca.cols,x_pca.rows,x_pca.channels());
-    //Mat tmp = x_pca * projection_matrix;
-    Mat tmp = pca_.project(x_pca);
-    //printfMat("tmp",tmp);
-    Mat x_proj_pca = tmp.reshape(10, height);  //TO-DO
-    //printf("FeatureProjection %d %d %d\n",x_proj_pca.cols,x_proj_pca.rows,x_proj_pca.channels());
-    if (x_npca.empty()) {
-      z = x_proj_pca;
-    } else {
-      vector<Mat> mat_vect;
+		//printf("FeatureProjection %d %d %d\n",x_pca.cols,x_pca.rows,x_pca.channels());
+		Mat tmp = x_pca * projection_matrix;
+		//Mat tmp_t = tmp.t();
+		//printfMat("projection_matrix",projection_matrix,1);
+		//printfMat("tmp_t",tmp_t,1);
+		Mat x_proj_pca = tmp.reshape(2, width);  //TO-DO
+		x_proj_pca = x_proj_pca.t();
 
-      split(x_proj_pca, mat_vect);
-//      printfMat("x_pca",x_pca);
-//      printfMat("x_proj_pca",x_proj_pca);
-      //mat_vect.insert(mat_vect.begin(), x_npca);
+		//printfMat("x_proj_pca",x_proj_pca);
+		if (x_npca.empty()) {
+			z = x_proj_pca;
+		} else {
+			vector<Mat> mat_vect;
 
-      Mat t;
+			split(x_proj_pca, mat_vect);
+			mat_vect.insert(mat_vect.begin(), x_npca);
+			Mat tmp ;
+//			merge(mat_vect,tmp);
+//			printfMat("tmp",tmp,1);
+			Mat t;
 
-      for (unsigned int i = 0; i < mat_vect.size(); ++i) {
-        //printf("FeatureProjection %d %d %d\n",mat_vect[i].cols,mat_vect[i].rows,mat_vect[i].channels());
-        //printf("FeatureProjection %d %d %d\n",cos_window.cols,cos_window.rows,cos_window.channels());
-        multiply(mat_vect[i], cos_window, mat_vect[i]);
+			for (unsigned int i = 0; i < mat_vect.size(); ++i) {
+				//printf("FeatureProjection %d %d %d\n",mat_vect[i].cols,mat_vect[i].rows,mat_vect[i].channels());
+				//printf("FeatureProjection %d %d %d\n",cos_window.cols,cos_window.rows,cos_window.channels());
+				multiply(mat_vect[i], cos_window, mat_vect[i]);
+				//cout<<mat_vect[i].type()<<" "<<cos_window.type()<<endl;
 
-      }
-      merge(mat_vect, z);
-    }
-  }
+			}
+			merge(mat_vect, z);
+//			printfMat("cos_window",cos_window,1);
+			//printfMat("z",z,1);
+		}
+	}
 }
 
 Mat ColorAttributesTracker::DenseGaussKernel(const double sigma, const Mat x,
@@ -232,12 +247,13 @@ Mat ColorAttributesTracker::DenseGaussKernel(const double sigma, const Mat x,
 
   for (int i = 0; i < x.channels(); ++i) {
     Mat tmp;
-    dft(x_v[0], tmp, DFT_COMPLEX_OUTPUT);
+    dft(x_v[i], tmp, DFT_COMPLEX_OUTPUT);
     xf_v.push_back(tmp);
   }
   merge(xf_v, xf);
-  double xx = norm(x);  //squared norm of x
 
+  double xx = norm(x);  //squared norm of x
+  xx *= xx;
   Mat yf;
 
   vector<Mat> y_v, yf_v;
@@ -245,11 +261,12 @@ Mat ColorAttributesTracker::DenseGaussKernel(const double sigma, const Mat x,
   //dft(y, yf, DFT_COMPLEX_OUTPUT);
   for (int i = 0; i < y.channels(); ++i) {
     Mat tmp;
-    dft(y_v[0], tmp, DFT_COMPLEX_OUTPUT);
+    dft(y_v[i], tmp, DFT_COMPLEX_OUTPUT);
     yf_v.push_back(tmp);
   }
   merge(yf_v, yf);
   double yy = norm(y);
+  yy *= yy;
 
   //%cross-correlation term in Fourier domain
   vector<Mat> planes;
@@ -257,25 +274,49 @@ Mat ColorAttributesTracker::DenseGaussKernel(const double sigma, const Mat x,
   split(yf, planes);
   Mat conj_yf;
   planes[1] = zero_mat - planes[1];
+  planes[3] = zero_mat - planes[3];
+  planes[5] = zero_mat - planes[5];
   merge(planes, conj_yf);
 
   Mat xyf;
-  multiply(xf, conj_yf, xyf);
+  xyf = ComplexMultiply(xf, conj_yf);
+  vector<Mat> xyf_v;
+  split(xyf,xyf_v);
+  Mat real = xyf_v[0] + xyf_v[2]+ xyf_v[4];
+  Mat comp = xyf_v[1] + xyf_v[3]+ xyf_v[5];
+  xyf_v.clear();
+  xyf_v.push_back(real);
+  xyf_v.push_back(comp);
+  merge(xyf_v,xyf);
 
-  Mat split_planes[] = { Mat::zeros(xyf.size(), CV_64F), Mat::zeros(xyf.size(),
-  CV_64F), Mat::zeros(xyf.size(), CV_64F) };
-
-  split_planes[0] += planes[0] + planes[2];
   Mat xy;
-  idft(split_planes[0], xy);
+//  printfMat("real",real,1);
+//  printfMat("comp",comp,1);
+//  printfMat("xyf",xyf,1);
+//  double sum = 0.0;
+//  for(int i = 0; i< real.rows; ++i)
+//  {
+//	  for(int j = 0; j<real.cols;++j)
+//		  cout<<setprecision(10)<<fixed<<real.at<double>(i,j)<<" ";
+//	  cout<<endl;
+//  }
+  //cout<<sum<<endl;
+
+  //idft(real, xy);
+  //printfMat("real",real,1);
+
+  dft(real,xy,DFT_INVERSE|DFT_REAL_OUTPUT);//?????????????TO_DO jing du bu zhun
+  xy = xy/(xy.rows*xy.cols);
+
+//  printfMat("xy",xy);
 
 
-  int num = x.dims;
+  int num = x.channels()*x.cols*x.rows;
   for (int i = 0; i < xy.rows; ++i)
     for (int j = 0; j < xy.cols; ++j) {
       double t = std::max(0.0, (xx + yy - 2 * xy.at<double>(i, j)));
-      t = -1.0 * t / num;
-      xy.at<double>(i, j) += exp(t);
+      t = -1.0 /(sigma*sigma)* t / num;
+      xy.at<double>(i, j) = exp(t);
     }
 
   return xy;
@@ -467,79 +508,106 @@ Mat ColorAttributesTracker::LoadW2C(char* file_name) {
 }
 
 void ColorAttributesTracker::DimensionReduction() {
-  //Scalar data_mean = cv::mean(z_pca);
-//	vector<float> data_mean;
-//	for (int i = 0; i < z_pca.cols; ++i) {
-//		float sum = .0f;
-//		for (int j = 0; j < z_pca.rows; ++j)
-//			sum += z_pca.at<float>(j, i);
-//		data_mean.push_back(sum / z_pca.rows);
-//		for (int j = 0; j < z_pca.rows; ++j)
-//			z_pca.at<float>(j, i) -= data_mean[i];
-//	}
-//	Mat cov_matrix;
-//	cov_matrix = 1 / (sz.height * sz.width - 1) * (z_pca.t() * z_pca);
-//	cov_matrix *= compression_learning_rate;
-//	cov_matrix += (1 - compression_learning_rate) * old_cov_matrix;
-//	SVD thissvd(cov_matrix, SVD::FULL_UV);
-//	Mat pca_basis = thissvd.u;
-//	Mat pca_variances = thissvd.w;
-//	projection_matrix = pca_basis(Rect(0, 0, num_compressed_dim, pca_basis.rows));
-//	projection_variances = pca_variances(Rect(0, 0, num_compressed_dim, num_compressed_dim));
-//	old_cov_matrix = (1 - compression_learning_rate) * old_cov_matrix
-//			+ compression_learning_rate * (projection_matrix * projection_variances * projection_matrix.t());
-
-  int max_components = 10;
-  Mat cov_matrix = 1 / (sz.height * sz.width - 1) * (z_pca.t() * z_pca);
-  cov_matrix *= compression_learning_rate;
-  cov_matrix += (1 - compression_learning_rate) * old_cov_matrix;
-  pca_ = PCA(cov_matrix,  // pass the data
-      Mat(),  // there is no pre-computed mean vector,
-              // so let the PCA engine to compute it
-      CV_PCA_DATA_AS_ROW,  // indicate that the vectors
-                           // are stored as matrix rows
-                           // (use CV_PCA_DATA_AS_COL if the vectors are
-                           // the matrix columns)
-      max_components  // specify how many principal components to retain
-      );
-
-  old_cov_matrix = (1 - compression_learning_rate) * old_cov_matrix
-      + compression_learning_rate * pca_.backProject(cov_matrix);
+	Mat data_mean = Mat(z_pca.cols,1,CV_64F);
+		for (int i = 0; i < z_pca.cols; ++i) {
+			double sum = .0f;
+			for (int j = 0; j < z_pca.rows; ++j)
+				sum += z_pca.at<double>(j, i);
+			data_mean.at<double>(i,0) = (sum / z_pca.rows);
+			for (int j = 0; j < z_pca.rows; ++j)
+				z_pca.at<double>(j, i) -= data_mean.at<double>(i,0);
+		}
+		old_cov_matrix = CalCovMatrix(z_pca,&old_cov_matrix);
 }
 
 void ColorAttributesTracker::DimensionReductionInit() {
 	Mat data_mean = Mat(z_pca.cols,1,CV_64F);
+	Mat tmp_z_pca = z_pca.clone();
 	for (int i = 0; i < z_pca.cols; ++i) {
 		double sum = .0f;
 		for (int j = 0; j < z_pca.rows; ++j)
 			sum += z_pca.at<double>(j, i);
-		cout<<"Sum:"<<sum<<endl;
 		data_mean.at<double>(i,0) = (sum / z_pca.rows);
 		for (int j = 0; j < z_pca.rows; ++j)
-			z_pca.at<double>(j, i) -= data_mean.at<double>(i,0);
+			tmp_z_pca.at<double>(j, i) -= data_mean.at<double>(i,0);
 	}
-	//printfMat("data_mean",data_mean);
-//	Mat cov_matrix;
-//  printf("DimensionReductionInit %d %d %d\n",z_pca.cols,z_pca.rows,z_pca.channels());
-//	cov_matrix = 1 / (sz.height * sz.width - 1) * (z_pca.t() * z_pca);
-//	SVD thissvd(cov_matrix, SVD::FULL_UV);
-//	Mat pca_basis = thissvd.u;
-//	Mat pca_variances = thissvd.w;
-//  printf("DimensionReductionInit %d %d %d %d %d\n",pca_variances.cols,pca_variances.rows,pca_variances.channels(),num_compressed_dim,pca_basis.rows);
-//	projection_matrix = pca_basis(Rect(0, 0, num_compressed_dim, pca_basis.rows));
-//
-//	projection_variances = pca_variances(Rect(0, 0, num_compressed_dim, num_compressed_dim));
-//
-//	old_cov_matrix = projection_matrix * projection_variances * projection_matrix.t();
+	old_cov_matrix = CalCovMatrix(tmp_z_pca,NULL);
 
-  int max_components = 2;
-  Mat cov_matrix = 1.0 / (sz.height * sz.width - 1.0) * (z_pca.t() * z_pca);
-  //printfMat("cov",cov_matrix);
-
-  pca_ = PCA(cov_matrix, Mat(), CV_PCA_DATA_AS_COL,max_components);
-
-  Mat pca_cov_matrix = pca_.eigenvectors;
-  //printfMat("pca_cov_matrix",pca_cov_matrix);
-  old_cov_matrix = pca_.backProject(pca_cov_matrix);
-  //printfMat("old_cov_matrix",old_cov_matrix);
 }
+
+Mat ColorAttributesTracker::CalCovMatrix(Mat z_pca,Mat* old_cov_matrix) {
+	Mat cov_matrix = 1.0 / (sz.height * sz.width - 1.0) * (z_pca.t() * z_pca);
+	SVD thissvd(cov_matrix, SVD::FULL_UV);
+	Mat pca_basis = thissvd.u;
+	Mat pca_variances = thissvd.w;
+	projection_matrix = pca_basis(Rect(0, 0, num_compressed_dim, pca_basis.rows));
+	Mat tmp = pca_variances(Rect(0, 0, 1, num_compressed_dim));
+	projection_variances = Mat::eye(tmp.rows, tmp.rows, CV_64F);
+	for (int i = 0; i < tmp.rows; ++i)
+		projection_variances.at<double>(i, i) = tmp.at<double>(i, 0);
+	Mat tmp_old_cov_matrix;
+	if(old_cov_matrix == NULL)
+	{
+		tmp_old_cov_matrix = projection_matrix * projection_variances * projection_matrix.t();
+	}
+	else
+	{
+		tmp_old_cov_matrix = (1 - compression_learning_rate) * (*old_cov_matrix)
+		      + compression_learning_rate * projection_matrix * projection_variances * projection_matrix.t();
+	}
+	return tmp_old_cov_matrix;
+}
+Mat ColorAttributesTracker::ComplexMultiply(Mat x,Mat y)
+{
+	Mat result = x.clone();
+	int x_channel = x.channels();
+	for(int i = 0; i<x.rows; ++i)
+	{
+		double a,b,c,d;
+		double* xp = x.ptr<double>(i);
+		double* yp = y.ptr<double>(i);
+		double* rp = result.ptr<double>(i);
+		for(int j=0; j<x.cols;++j)
+		{
+			for(int k = 0; k<x.channels()/2;++k)
+			{
+				a = xp[x_channel*j+k*2];
+				b = xp[x_channel*j+k*2+1];
+				c = yp[x_channel*j+k*2];
+				d = yp[x_channel*j+k*2+1];
+				rp[x_channel*j+k*2] = a*c-b*d;
+				rp[x_channel*j+k*2+1] = a*d+b*c;
+			}
+		}
+	}
+
+	return result;
+}
+
+Mat ColorAttributesTracker::NonSymComplexMultiply(Mat x,Mat y)
+{
+	assert(x.channels() == 2 && y.channels() == 1);
+
+	Mat result = x.clone();
+	int x_channel = x.channels();
+	for(int i = 0; i<x.rows; ++i)
+	{
+		double a,b,c,d;
+		double* xp = x.ptr<double>(i);
+		double* yp = y.ptr<double>(i);
+		double* rp = result.ptr<double>(i);
+		for(int j=0; j<x.cols;++j)
+		{
+				a = xp[x_channel*j];
+				b = xp[x_channel*j+1];
+				c = yp[x_channel*j];
+				d = 0;
+				rp[x_channel*j] = a*c-b*d;
+				rp[x_channel*j+1] = a*d+b*c;
+		}
+	}
+
+	return result;
+}
+
+
