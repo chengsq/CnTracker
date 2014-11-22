@@ -23,7 +23,7 @@ char images_dir[100] =  "imgs";
 char gt_name[100] ="deer_gt.txt";
 char image_pre[100] ="img";
 
-int frame_cnt = 70;
+int frame_cnt = 71;
 
 using namespace cv;
 using namespace std;
@@ -39,21 +39,21 @@ Rect target_rect;
 ColorAttributesTracker* cn_tracker;
 void test()
 {
-	Mat a = Mat::zeros(130,190,CV_64F);
+	Mat a = Mat::zeros(3,3,CV_64F);
 	Mat af;
-	int num = 10000;
+	int num = 0;
 	for(int i = 0; i<a.rows; ++i)
 		for(int j = 0;j<a.cols;++j)
 		{
-			a.at<double>(i,j) = num*2;
+			a.at<double>(i,j) = num;
 			num++;
 		}
 	//cout<<a<<endl;
 	dft(a,af,DFT_COMPLEX_OUTPUT);
 	//cout<<af<<endl;
 	Mat aff;
-	dft(af,aff, cv::DFT_INVERSE|cv::DFT_REAL_OUTPUT);
-	cout<<aff/(130.*190.)<<endl;
+	dft(af,aff, DFT_INVERSE|cv::DFT_COMPLEX_OUTPUT|DFT_SCALE);
+	cout<<aff<<endl;
 }
 int main()
 {

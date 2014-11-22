@@ -44,6 +44,7 @@ private:
 	Mat CalCovMatrix(Mat z_pca,Mat* old_cov_matrix);
 	Mat ComplexMultiply(Mat a,Mat b);
 	Mat NonSymComplexMultiply(Mat x,Mat y);
+	Mat ComplexDivide(Mat x, Mat y);
 	bool dr_flag;
 
 	float padding;
@@ -77,7 +78,6 @@ private:
 	Mat old_cov_matrix;
 	Mat alphaf_num;
 	Mat alphaf_den;
-	PCA pca_;
 
 };
 
