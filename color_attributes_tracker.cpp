@@ -125,11 +125,12 @@ void ColorAttributesTracker::Update(Mat img) {
 	idft(b, response, DFT_REAL_OUTPUT);
 	Point maxLoc;
 	minMaxLoc(response, NULL, NULL, NULL, &maxLoc);
-	if(response.at<double>(maxLoc.y,maxLoc.x) > 0){ // set response threshold
+//	if(response.at<double>(maxLoc.y,maxLoc.x) > 0)
+	{ // set response threshold
 	pos.x = pos.x - floor(sz.width / 2) + maxLoc.x;
 	pos.y = pos.y - floor(sz.height / 2) + maxLoc.y;
 	}
-	cout<<response.at<double>(maxLoc.y,maxLoc.x)<<endl;
+//	cout<<response.at<double>(maxLoc.y,maxLoc.x)<<endl;
 	GetSubwindow(img, pos, sz, non_compressed_features, compressed_features, w2c, &xo_npca, &xo_pca);
 
 	//% update the appearance
