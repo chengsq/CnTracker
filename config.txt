@@ -1,0 +1,27 @@
+# quiet mode disables all visual output (for experiments).
+quietMode = 0
+
+# debug mode enables additional drawing and visualization.
+debugMode = 1
+
+# base path for video sequences.
+sequenceBasePath = ../sequences
+
+# path for output results file.
+# comment this out to disable output.
+#resultsPath = log.txt
+
+# video sequence to run the tracker on.
+# comment this out to use webcam.
+sequenceName = Basketball
+
+imageDir = imgs
+
+
+# frame size for use during tracking.
+# the input image will be scaled to this size.
+frameWidth = 640
+frameHeight = 640
+
+#image_prefix 
+imagePrefix = img-
